@@ -8,6 +8,29 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct TokenAllocation {
+    pub team: u8,
+    pub research: u8,
+    pub liquidity: Liquidity,
+    pub marketing: u8,
+    pub partners: u8,
+    pub stakingReward: u8,
+    pub ecosystemReward: u8,
+    pub airdrop: u8,
+    pub privateSale: u8,
+    pub preSale1: u8,
+    pub preSale2: u8,
+    pub strategicInvestors: u8,
+    pub ido: u8,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct Liquidity {
+    pub centralizeExchange: u8,
+    pub decentralizedExchange: u8,
+}
+
 // Declare and export the program's entrypoint
 entrypoint!(process_instruction);
 
