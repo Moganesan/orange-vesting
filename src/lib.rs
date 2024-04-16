@@ -1,3 +1,5 @@
+use std::task::Context;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -31,6 +33,7 @@ pub struct Liquidity {
     pub decentralized_exchange: u8,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct VestingSchedule {
     pub team: Vec<(u64, u64)>,
     pub research: Vec<(u64, u64)>,
@@ -55,6 +58,25 @@ pub fn process_instruction(
     accounts: &[AccountInfo], // The account to say hello to
     _instruction_data: &[u8], // Ignored, all helloworld instructions are hellos
 ) -> ProgramResult {
+    let token_allocation = TokenAllocation {
+        team: 8,
+        research: 7,
+        liquidity: Liquidity {
+            centralize_exchange: 15,
+            decentralized_exchange: 6,
+        },
+        marketing: 5,
+        partners: 4,
+        staking_reward: 10,
+        ecosystem_reward: 7,
+        airdrop: 4,
+        private_sale: 6,
+        pre_sale_1: 7,
+        pre_sale_2: 8,
+        strategic_investors: 4,
+        ido: 9,
+    };
+
     msg!("Token Vesting Contract");
     Ok(())
 }
