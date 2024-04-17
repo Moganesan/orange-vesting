@@ -1,5 +1,3 @@
-use std::{convert::TryInto, task::Context, vec};
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -27,7 +25,7 @@ pub struct TokenAllocation {
     pub private_sale: u8,
     pub pre_sale_1: u8,
     pub pre_sale_2: u8,
-    pub strategic_investors: u8,
+    pub investors: u8,
     pub ido: u8,
 }
 
@@ -43,6 +41,18 @@ pub struct VestingSchedule {
     pub ecosystem_reward: i64,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct Whitelist {
+    pub team: Vec<Pubkey>,
+    pub research: Vec<Pubkey>,
+    pub marketing: Vec<Pubkey>,
+    pub partners: Vec<Pubkey>,
+    pub staking_reward: Vec<Pubkey>,
+    pub ecosystem_reward: Vec<Pubkey>,
+    pub airdrop: Vec<Pubkey>,
+    pub private_sale: Vec<Pubkey>,
+    pub investors: Vec<Pubkey>,
+}
 // Declare and export the program's entrypoint
 entrypoint!(process_instruction);
 
@@ -51,58 +61,49 @@ pub fn process_instruction(
     program_id: &Pubkey, // Public key of the account the hello world program was loaded into
     accounts: &[AccountInfo],
     _instruction_data: &[u8], // Ignored, all helloworld instructions are hellos
-    _team_whitelist: &[AccountInfo<'_>], // Change to slice
-    _reseach_whitelist: &[AccountInfo],
-    _marketing_whitelist: &[AccountInfo],
-    _partners_whitelist: &[AccountInfo],
-    _staking_reward_whitelist: &[AccountInfo],
-    _ecosystem_reward_whitelist: &[AccountInfo],
-    _airdrop_whitelist: &[AccountInfo],
-    _private_sale_white_list: &[AccountInfo],
-    _pre_sale_1_whitelist: &[AccountInfo],
-    _pre_sale_2_whitelist: &[AccountInfo],
-    _investors_whitelist: &[AccountInfo],
 ) -> ProgramResult {
-    let mut team_whitelist: Vec<AccountInfo> = Vec::new();
-    team_whitelist.extend_from_slice(&_team_whitelist);
+    let accounts_iter = &mut accounts.iter();
+    let writing_account = next_account_info(accounts_iter)?;
 
-    let mut research_whitelist: Vec<AccountInfo> = Vec::new();
-    research_whitelist.extend_from_slice(&_reseach_whitelist);
+    if writing_account.owner != program_id {
+        msg!("writing_account isn't owned by the program");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    if _instruction_data.is_empty() {
+        // Handle empty instruction data
+        return Err(ProgramError::InvalidInstructionData);
+    }
 
-    let mut marketing_whitelist: Vec<AccountInfo> = Vec::new();
-    marketing_whitelist.extend_from_slice(&_marketing_whitelist);
+    if _instruction_data.len() == 0 {
+        return Err(ProgramError::InvalidInstructionData);
+    }
 
-    let mut partners_whitelist: Vec<AccountInfo> = Vec::new();
-    partners_whitelist.extend_from_slice(&_partners_whitelist);
+    let whitelist = match Whitelist::try_from_slice(_instruction_data) {
+        Ok(whitelist) => whitelist,
+        Err(_) => return Err(ProgramError::InvalidInstructionData),
+    };
 
-    let mut staking_whitelist: Vec<AccountInfo> = Vec::new();
-    staking_whitelist.extend_from_slice(&_staking_reward_whitelist);
+    let mut team_whitelist: &Vec<Pubkey> = &whitelist.team;
 
-    let mut ecosystem_reward_whitelist: Vec<AccountInfo> = Vec::new();
-    ecosystem_reward_whitelist.extend_from_slice(&_ecosystem_reward_whitelist);
+    let mut research_whitelis: &Vec<Pubkey> = &whitelist.research;
 
-    let airdrop_whitelist: Vec<AccountInfo> = Vec::new();
-    airdrop_whitelist.extend_from_slice(&_airdrop_whitelist);
+    let mut marketing_whitelist: &Vec<Pubkey> = &whitelist.marketing;
 
-    let private_sale_whitelist: Vec<AccountInfo> = Vec::new();
-    private_sale_whitelist.extend_from_slice(&_private_sale_white_list);
+    let mut partners_whitelist: &Vec<Pubkey> = &whitelist.partners;
 
-    let pre_sale_1_whitelist: Vec<AccountInfo> = Vec::new();
-    pre_sale_1_whitelist.extend_from_slice(&pre_sale_1_whitelist);
+    let mut staking_reward_whitelist: &Vec<Pubkey> = &whitelist.staking_reward;
 
-    let pre_sale_2_whitelist: Vec<AccountInfo> = Vec::new();
-    pre_sale_1_whitelist.extend_from_slice(&_pre_sale_1_whitelist);
+    let mut ecosystem_reward_whitelist: &Vec<Pubkey> = &whitelist.ecosystem_reward;
 
-    let investors_whitelist: Vec<AccountInfo> = Vec::new();
-    investors_whitelist.extend_from_slice(&_investors_whitelist);
+    let mut airdrop_whitelist: &Vec<Pubkey> = &whitelist.airdrop;
+
+    let mut private_sale_whitelist: &Vec<Pubkey> = &whitelist.private_sale;
+
+    let mut investors_whitelist: &Vec<Pubkey> = &whitelist.investors;
 
     let token_allocation = TokenAllocation {
         team: 8,
         research: 7,
-        liquidity: Liquidity {
-            centralize_exchange: 15,
-            decentralized_exchange: 6,
-        },
         marketing: 5,
         partners: 4,
         staking_reward: 10,
@@ -111,7 +112,7 @@ pub fn process_instruction(
         private_sale: 6,
         pre_sale_1: 7,
         pre_sale_2: 8,
-        strategic_investors: 4,
+        investors: 4,
         ido: 9,
     };
 
@@ -121,11 +122,5 @@ pub fn process_instruction(
         ecosystem_reward: Clock::get()?.unix_timestamp + 300 * seconds_per_year as i64,
     };
 
-    if _instruction_data.is_empty() {
-        // Handle empty instruction data
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    msg!("Token Vesting Contract");
     Ok(())
 }
