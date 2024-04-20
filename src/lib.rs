@@ -1,17 +1,20 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::pubkey::Pubkey;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
-    pubkey::Pubkey,
 };
+use solana_sdk::clock;
 use solana_sdk::{
     account::{self, Account},
     clock::{Clock, SECONDS_PER_DAY},
     sysvar::Sysvar,
 };
+use spl_token::instruction::transfer;
+use spl_token::state::Account as TokenAccount;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TokenAllocation {
@@ -53,8 +56,12 @@ pub struct Whitelist {
     pub private_sale: Vec<Pubkey>,
     pub investors: Vec<Pubkey>,
 }
-// Declare and export the program's entrypoint
-entrypoint!(process_instruction);
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct TokenClaim {
+    pub total_allocation: u64,
+    pub claimed_token: u64,
+}
 
 // Program entrypoint's implementation
 pub fn process_instruction(
@@ -115,12 +122,64 @@ pub fn process_instruction(
         investors: 4,
         ido: 9,
     };
-
     let seconds_per_year = SECONDS_PER_DAY;
     let vesting_schedule: VestingSchedule = VestingSchedule {
         team: Clock::get()?.unix_timestamp + 90 * seconds_per_year as i64,
         ecosystem_reward: Clock::get()?.unix_timestamp + 300 * seconds_per_year as i64,
     };
 
+    let total_supply: u64;
+    let mut team_allocation_per_wallet: u64;
+
+    if _instruction_data[0] == 0 {
+        return claim_team_tokens(
+            program_id,
+            accounts,
+            &_instruction_data[1.._instruction_data.len()],
+            &team_whitelist,
+            &token_allocation.team,
+            vesting_schedule.team,
+        );
+    }
+
     Ok(())
 }
+
+fn claim_team_tokens(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+    team_whitelist: &Vec<Pubkey>,
+    token_allocation: &u8,
+    vesting_schedule: i64,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let writing_account = next_account_info(accounts_iter)?;
+    let token_program_account = next_account_info(accounts_iter)?;
+    let token_account = next_account_info(accounts_iter)?;
+    let receiver_account = next_account_info(accounts_iter)?;
+
+    if team_whitelist
+        .iter()
+        .any(|account| account != receiver_account.key)
+    {
+        msg!("The account is't found in the whitelist.");
+        return Err(ProgramError::Custom(1));
+    }
+
+    if writing_account.owner != program_id {
+        msg!("writing_account is't owned by the program.");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if Clock::get()?.unix_timestamp < vesting_schedule {
+        msg!("Team token hasn't reached the realease period.");
+        return Err(ProgramError::Custom(1));
+    }
+
+    Ok(())
+}
+
+// Declare and export the program's entrypoint
+entrypoint!(process_instruction);
